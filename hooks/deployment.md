@@ -145,66 +145,57 @@ Before deploying, ensure the following components are installed and configured o
 
 This setup uses a single IIS site to serve both the static React frontend and the Node.js backend API.
 
-1.  **Get Source Code:**
-    -   Open PowerShell or Command Prompt.
-    -   Navigate to the directory where you want to store the application (e.g., `cd C:\inetpub\wwwroot`).
-    -   Clone the repository using the following command (replace the URL with your actual repository URL):
+### a. Get Source Code (Private Repository)
+You must authenticate to clone a private repository. Choose one of the two methods below.
+
+**Method 1: Personal Access Token (PAT) - Recommended**
+1.  **Generate a PAT:**
+    -   Go to your GitHub account settings: `Settings -> Developer settings -> Personal access tokens -> Tokens (classic)`.
+    -   Click "Generate new token".
+    -   Give it a descriptive name (e.g., "Windows Server Deploy").
+    -   Set an expiration date.
+    -   Under "Select scopes", check the `repo` box.
+    -   Click "Generate token" and **copy the token immediately**. You will not see it again.
+2.  **Clone the Repository:**
+    -   Open PowerShell or Command Prompt on your server.
+    -   Navigate to `cd C:\inetpub\wwwroot`.
+    -   Run the clone command, replacing `<YOUR_PAT>` with the token you just copied:
         ```powershell
-        git clone https://your-repository-url.com/sheetsync.git sheetsync
+        git clone https://timothygaunt:<YOUR_PAT>@github.com/timothygaunt/syncproject.git sheetsync
         ```
-    -   This will create a `C:\inetpub\wwwroot\sheetsync` folder with all the application code.
 
-2.  **Install Dependencies:** Navigate into the new directory (`cd sheetsync`) and run `npm install`.
+**Method 2: SSH Deploy Key**
+1.  **Generate SSH Key on Server:**
+    -   Open PowerShell and run `ssh-keygen -t rsa -b 4096 -C "your_email@example.com"`.
+    -   Press Enter to accept the default file location (`C:\Users\YourUser\.ssh\id_rsa`).
+    -   Press Enter twice for no passphrase.
+    -   Display the public key by running `cat C:\Users\YourUser\.ssh\id_rsa.pub` and copy the entire output.
+2.  **Add Deploy Key to GitHub:**
+    -   Navigate to your repository on GitHub: `https://github.com/timothygaunt/syncproject`.
+    -   Go to `Settings -> Deploy keys -> Add deploy key`.
+    -   Give it a title (e.g., "Windows Server 2022").
+    -   Paste the public key you copied into the "Key" box.
+    -   Do **not** check "Allow write access" if you only need to pull code.
+    -   Click "Add key".
+3.  **Clone the Repository:**
+    -   Open PowerShell and navigate to `cd C:\inetpub\wwwroot`.
+    -   Run the clone command using the SSH URL:
+        ```powershell
+        git clone git@github.com:timothygaunt/syncproject.git sheetsync
+        ```
 
-3.  **Build Frontend:** In the same PowerShell window, run `npm run build`. This will create a `dist` folder containing the static frontend files (`index.html`, etc.).
-
-4.  **Set Environment Variable:** Create a system-level environment variable named `DATABASE_URL` with your SQL Server connection string.
+### b. Install, Build, and Configure
+1.  **Install Dependencies:** Navigate into the new directory (`cd sheetsync`) and run `npm install`.
+2.  **Build Frontend:** In the same PowerShell window, run `npm run build`. This is not strictly necessary as this is a Vite-less setup, but would be part of a real build process. The `web.config` will serve from the root.
+3.  **Set Environment Variable:** Create a system-level environment variable named `DATABASE_URL` with your SQL Server connection string.
     -   `mssql://SheetSyncUser:YourStrongPassword@localhost/SheetSyncDB`
     -   You will need to restart the server for this to take effect globally.
-
-5.  **Create IIS Site:**
+4.  **Create IIS Site:**
     -   In IIS Manager, right-click "Sites" and select "Add Website...".
     -   **Site name:** `SheetSyncApp`
-    -   **Physical path:** `C:\inetpub\wwwroot\sheetsync\dist` (Point it to the build output folder).
+    -   **Physical path:** `C:\inetpub\wwwroot\sheetsync` (Point it to the code root).
     -   **Binding:** Choose a port (e.g., 80).
-
-6.  **Create `web.config`:** Place the following `web.config` file in the root of your code directory (`C:\inetpub\wwwroot\sheetsync`). IIS will find it and use it to configure the site.
-
-    ```xml
-    <configuration>
-      <system.webServer>
-        <handlers>
-          <!-- Indicates that the server.ts file is a node.js script to be handled by the iisnode module -->
-          <add name="iisnode" path="server.ts" verb="*" modules="iisnode" />
-        </handlers>
-        <rewrite>
-          <rules>
-            <!-- All other URLs are mapped to the Node.js application -->
-            <rule name="app">
-              <match url="/*" />
-              <action type="Rewrite" url="server.ts" />
-            </rule>
-            <!-- Route API requests to the Node.js backend -->
-            <rule name="api" stopProcessing="true">
-                <match url="^api/.*" />
-                <action type="Rewrite" url="server.ts" />
-            </rule>
-            <!-- Serve static files from the 'dist' folder and handle client-side routing -->
-            <rule name="static" stopProcessing="true">
-                <match url="^.*$" />
-                <conditions logicalGrouping="MatchAll">
-                    <add input="{REQUEST_FILENAME}" matchType="IsFile" negate="true" />
-                    <add input="{REQUEST_FILENAME}" matchType="IsDirectory" negate="true" />
-                </conditions>
-                <action type="Rewrite" url="index.html" />
-            </rule>
-          </rules>
-        </rewrite>
-        <!-- Increase logging for debugging iisnode issues -->
-        <iisnode loggingEnabled="true" devErrorsEnabled="true" />
-      </system.webServer>
-    </configuration>
-    ```
+5.  **Place `web.config`:** Ensure the `web.config` file from the repository is in the root of your code directory (`C:\inetpub\wwwroot\sheetsync`).
 
 ## 4. Data Mover Setup (Windows Task Scheduler)
 
@@ -218,7 +209,8 @@ The `dataMover.ts` script needs to be triggered for each job on its schedule.
     -   **Triggers Tab:** Create a new trigger. Set the schedule according to the job's `cronSchedule`.
     -   **Actions Tab:** Create a new "Start a program" action.
         -   **Program/script:** `C:\Program Files\nodejs\node.exe` (or wherever node.exe is).
-        -   **Add arguments:** `C:\inetpub\wwwroot\sheetsync\dist\dataMover.js JOB_ID_HERE` (replace `JOB_ID_HERE` with the actual job ID for this specific schedule).
+        -   **Add arguments:** `C:\inetpub\wwwroot\sheetsync\services\dataMover.js JOB_ID_HERE` (replace `JOB_ID_HERE` with the actual job ID for this specific schedule).
+        -   **Start in:** `C:\inetpub\wwwroot\sheetsync\services\`
     -   **Settings Tab:** Configure other settings as needed (e.g., "Run task as soon as possible after a scheduled start is missed").
 
 Your application is now deployed and configured to run on your on-premise Windows Server environment.

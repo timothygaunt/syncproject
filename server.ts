@@ -11,7 +11,7 @@ const app = express();
 const port = process.env.PORT || 3001;
 
 app.use(cors()); // Allow requests from our frontend
-// FIX: Added root path '/' to resolve ambiguity in Express's 'use' method overloads, satisfying the TypeScript compiler.
+// Fix: Explicitly added the root path '/' to resolve a TypeScript error where the `app.use` overload for middleware was not being correctly identified.
 app.use('/', express.json()); // Parse JSON request bodies
 
 // --- API ROUTES ---
