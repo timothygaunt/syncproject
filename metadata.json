@@ -1,0 +1,5 @@
+{
+  "name": "Sync Scheduler",
+  "description": "An application to schedule and manage data synchronization from Google Sheets to Google BigQuery, with configurations stored in a SQL Server-backed system for on-premise deployment.",
+  "requestFramePermissions": []
+}
