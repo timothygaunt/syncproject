@@ -9,8 +9,6 @@ interface PermissionsContextType {
 
 const PermissionsContext = createContext<PermissionsContextType | undefined>(undefined);
 
-// FIX: A syntax error caused the component to not return any JSX, leading to multiple errors.
-// The component has been corrected to properly return the provider and its children.
 export const PermissionsProvider: React.FC<{
     currentUser: User | null;
     userGroups: UserGroup[];
@@ -42,9 +40,11 @@ export const PermissionsProvider: React.FC<{
         return userPermissions.has(permission);
     };
 
-    // FIX: Replaced JSX with React.createElement to make this file valid TypeScript (.ts).
-    // JSX syntax is not allowed in .ts files and was causing parsing errors.
-    return React.createElement(PermissionsContext.Provider, { value: { currentUser, userGroups, hasPermission } }, children);
+    return (
+        <PermissionsContext.Provider value={{ currentUser, userGroups, hasPermission }}>
+            {children}
+        </PermissionsContext.Provider>
+    );
 };
 
 export const usePermissions = (): PermissionsContextType => {
