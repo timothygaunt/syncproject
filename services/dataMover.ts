@@ -1,10 +1,12 @@
 // CONCEPTUAL BACKEND FILE: services/dataMover.ts
-// This file represents the code that would run in a Google Cloud Function.
+// This file represents the code that would run in a Google Cloud Function or as a standalone Node.js process.
 // It is NOT part of the React frontend bundle.
-// It would be triggered by Google Cloud Scheduler on the cron schedule defined in a job.
+// It is executed by the scheduler.ts script.
 
-// To run this, you would need to install these packages in your Cloud Function environment:
-// npm install @google-cloud/bigquery @google-cloud/storage googleapis basic-ftp csv-parse xlsx
+// FIX: Declare Node.js globals to resolve TypeScript errors in non-Node environments.
+declare const process: any;
+declare const require: any;
+declare const module: any;
 
 import { BigQuery, Table, Job } from '@google-cloud/bigquery';
 import { Storage } from '@google-cloud/storage';
@@ -18,17 +20,23 @@ import { Writable } from 'stream';
 
 
 /**
- * Main function triggered by Cloud Scheduler.
- * The 'event' would contain the jobId to execute.
+ * Main execution function for the data mover script.
+ * It is invoked with a job ID as a command-line argument.
  */
-export async function runSyncJob(event: { data: string }): Promise<void> {
-    const jobId = Buffer.from(event.data, 'base64').toString('utf-8');
+async function main() {
+    const jobId = process.argv[2]; // Get jobId from command line: `node dataMover.js <jobId>`
+    if (!jobId) {
+        console.error('[FATAL] No Job ID provided. Exiting.');
+        process.exit(1);
+    }
     console.log(`[INFO] Starting sync for job ID: ${jobId}`);
 
     let tempGcsFile: any = null;
     let tempBqTable: Table | null = null;
     
     try {
+        // In a real app, this would fetch from the SQL Server database.
+        // For this conceptual file, we'll assume a function `getJobAndDestinationConfig` exists in a shared DB layer.
         const { job, projectConnection } = await getJobAndDestinationConfig(jobId);
         console.log(`[INFO] Fetched configuration for job: ${job.name}`);
 
@@ -47,10 +55,9 @@ export async function runSyncJob(event: { data: string }): Promise<void> {
         const storage = new Storage(authOptions);
         // --- END AUTHENTICATION ---
         
-
         let allData: any[] = [];
         if (job.sourceType === SourceType.GOOGLE_SHEET) {
-            allData = await fetchAllGoogleSheetData(job);
+            allData = await fetchAllGoogleSheetData(job, authOptions.credentials);
         } else if (job.sourceType === SourceType.FTP) {
             allData = await fetchAllFtpData(job);
         } else {
@@ -59,7 +66,7 @@ export async function runSyncJob(event: { data: string }): Promise<void> {
         
         if (allData.length === 0) {
             console.log(`[SUCCESS] No data found in sources. Sync for job ${job.name} completed without loading.`);
-            return;
+            process.exit(0);
         }
 
         const bucket = storage.bucket(projectConnection.stagingGcsBucket.replace('gs://', ''));
@@ -80,46 +87,54 @@ export async function runSyncJob(event: { data: string }): Promise<void> {
         await mergeStagingToFinal(bigquery, tempBqTable, finalTable, job.syncStrategy);
 
         console.log(`[SUCCESS] Successfully completed sync for job: ${job.name}`);
+        // In a real app, update the job's last_run status in the database here.
+        process.exit(0);
 
     } catch (error) {
         console.error(`[ERROR] Sync failed for job ID: ${jobId}`, error);
-        throw error;
+        // In a real app, update the job's last_run status to 'FAILURE' in the database here.
+        process.exit(1);
     } finally {
         await cleanup(tempGcsFile, tempBqTable);
     }
 }
 
+// --- Helper Functions ---
+
 async function getJobAndDestinationConfig(jobId: string): Promise<{ job: SyncJob; projectConnection: GcpProjectConnection }> {
     console.log(`[INFO] Getting job and destination config for ${jobId}`);
     // In a real app, this would fetch from the SQL Server database via an API call or direct connection.
+    // This requires a separate database connection logic file.
     const mockJob: SyncJob = {} as any; 
     const mockProjectConnection: GcpProjectConnection = {} as any;
     if (!mockJob || !mockProjectConnection) throw new Error(`Config not found for job ID ${jobId}.`);
     return { job: mockJob, projectConnection: mockProjectConnection };
 }
 
-// --- GOOGLE SHEET DATA FETCHING ---
-async function fetchAllGoogleSheetData(job: SyncJob): Promise<any[]> {
-    // This function would use the auth credentials passed from the main function.
-    const auth = new google.auth.GoogleAuth({ scopes: ['https://www.googleapis.com/auth/spreadsheets.readonly']});
-    const authClient = await auth.getClient();
-    google.options({ auth: authClient });
-    const sheetsApi = google.sheets('v4');
+async function fetchAllGoogleSheetData(job: SyncJob, credentials: any): Promise<any[]> {
+    const auth = new google.auth.JWT({
+        email: credentials.client_email,
+        key: credentials.private_key,
+        scopes: ['https://www.googleapis.com/auth/spreadsheets.readonly'],
+    });
+    const sheetsApi = google.sheets({ version: 'v4', auth });
     
     let combinedData: any[] = [];
     const config = job.sourceConfiguration as GoogleSheetSourceConfig;
+    // In a real app, you would fetch the sheet URL from the database.
     const sheetUrl = (await getManagedSheet(config.managedSheetId)).url;
     const spreadsheetId = sheetUrl.split('/d/')[1].split('/')[0];
     
     for (const source of config.sources) {
+        console.log(`[INFO] Fetching data from sheet: ${spreadsheetId}, range: ${source.sheetName}!${source.range}`);
         // Implementation for fetching sheet data...
     }
     return combinedData;
 }
 
-// --- FTP DATA FETCHING ---
 async function fetchAllFtpData(job: SyncJob): Promise<any[]> {
     const config = job.sourceConfiguration as FtpSourceConfig;
+    // In a real app, you would fetch the FTP source details from the database.
     const ftpSource = await getFtpSource(config.ftpSourceId);
 
     console.log(`[INFO] Connecting to FTP host: ${ftpSource.host}`);
@@ -170,7 +185,6 @@ async function fetchAllFtpData(job: SyncJob): Promise<any[]> {
     });
 }
 
-// --- COMMON DATA LOADING PIPELINE ---
 async function uploadToGcs(gcsFile: any, data: any[]): Promise<void> {
     console.log(`[INFO] Uploading ${data.length} rows to GCS at ${gcsFile.name}`);
     const dataBuffer = Buffer.from(data.map(row => JSON.stringify(row)).join('\n'));
@@ -239,3 +253,8 @@ async function waitForJob(job: Job): Promise<void> {
 // Mocked helper functions to get source details
 async function getManagedSheet(id: string): Promise<{url: string}> { return {url: 'https://docs.google.com/spreadsheets/d/abc123xyz'}; }
 async function getFtpSource(id: string): Promise<FtpSource> { return {id: 'ftp_1', name: 'Main Sales FTP', host: 'ftp.example.com', port: 22, user: 'salesuser', pass: 'securepass', addedAt: new Date()}; }
+
+// Run the main function if the script is executed directly
+if (require.main === module) {
+    main();
+}

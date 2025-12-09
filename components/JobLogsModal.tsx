@@ -55,7 +55,7 @@ export const JobLogsModal: React.FC<JobLogsModalProps> = ({ isOpen, onClose, job
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50" aria-modal="true" role="dialog">
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-3xl m-4 max-h-[90vh] flex flex-col">
-                <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+                <div className="p-6 border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
                     <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Job Run Logs</h2>
                     <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
                        Logs for job: <span className="font-semibold text-indigo-600 dark:text-indigo-400">{job.name}</span>
@@ -101,7 +101,7 @@ export const JobLogsModal: React.FC<JobLogsModalProps> = ({ isOpen, onClose, job
                     )}
                 </div>
 
-                <div className="bg-gray-50 dark:bg-gray-700 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                <div className="bg-gray-50 dark:bg-gray-700/50 px-4 py-3 sm:px-6 flex flex-row-reverse flex-shrink-0">
                     <Button type="button" variant="primary" onClick={onClose}>Close</Button>
                 </div>
             </div>

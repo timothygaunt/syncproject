@@ -55,7 +55,7 @@ const AddManagedSheetModal: React.FC<AddManagedSheetModalProps> = ({ isOpen, onC
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50" aria-modal="true" role="dialog">
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-md m-4 max-h-[90vh] flex flex-col">
                 <form onSubmit={handleSubmit} className="flex-1 flex flex-col min-h-0">
-                    <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+                    <div className="p-6 border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
                         <h2 className="text-2xl font-bold text-gray-900 dark:text-white">{isEditMode ? 'Edit' : 'Add'} Google Sheet</h2>
                         <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
                             {isEditMode ? 'Update the details for this Google Sheet.' : 'Register a new Google Sheet to make it available as a data source.'}
@@ -83,7 +83,7 @@ const AddManagedSheetModal: React.FC<AddManagedSheetModalProps> = ({ isOpen, onC
                         {error && <p className="text-sm text-red-500">{error}</p>}
                     </div>
 
-                    <div className="bg-gray-50 dark:bg-gray-700 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse mt-auto">
+                    <div className="bg-gray-50 dark:bg-gray-700/50 px-4 py-3 sm:px-6 flex flex-row-reverse mt-auto flex-shrink-0">
                         <Button type="submit" variant="primary" disabled={isSaving}>
                             {isSaving ? 'Saving...' : (isEditMode ? 'Save Changes' : 'Add Sheet')}
                         </Button>

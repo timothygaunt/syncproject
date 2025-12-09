@@ -146,16 +146,12 @@ Before deploying, ensure the following components are installed and configured o
 This setup uses a single IIS site to serve both the static React frontend and the Node.js backend API.
 
 ### a. Get Source Code (Private Repository)
-You must authenticate to clone a private repository. Choose one of the two methods below.
+You must authenticate to clone a private repository. The recommended method is a Personal Access Token (PAT).
 
-**Method 1: Personal Access Token (PAT) - Recommended**
 1.  **Generate a PAT:**
     -   Go to your GitHub account settings: `Settings -> Developer settings -> Personal access tokens -> Tokens (classic)`.
-    -   Click "Generate new token".
-    -   Give it a descriptive name (e.g., "Windows Server Deploy").
-    -   Set an expiration date.
-    -   Under "Select scopes", check the `repo` box.
-    -   Click "Generate token" and **copy the token immediately**. You will not see it again.
+    -   Click "Generate new token". Give it a name (e.g., "Windows Server Deploy"), set an expiration, and check the `repo` scope.
+    -   Click "Generate token" and **copy the token immediately**.
 2.  **Clone the Repository:**
     -   Open PowerShell or Command Prompt on your server.
     -   Navigate to `cd C:\inetpub\wwwroot`.
@@ -164,53 +160,49 @@ You must authenticate to clone a private repository. Choose one of the two metho
         git clone https://timothygaunt:<YOUR_PAT>@github.com/timothygaunt/syncproject.git sheetsync
         ```
 
-**Method 2: SSH Deploy Key**
-1.  **Generate SSH Key on Server:**
-    -   Open PowerShell and run `ssh-keygen -t rsa -b 4096 -C "your_email@example.com"`.
-    -   Press Enter to accept the default file location (`C:\Users\YourUser\.ssh\id_rsa`).
-    -   Press Enter twice for no passphrase.
-    -   Display the public key by running `cat C:\Users\YourUser\.ssh\id_rsa.pub` and copy the entire output.
-2.  **Add Deploy Key to GitHub:**
-    -   Navigate to your repository on GitHub: `https://github.com/timothygaunt/syncproject`.
-    -   Go to `Settings -> Deploy keys -> Add deploy key`.
-    -   Give it a title (e.g., "Windows Server 2022").
-    -   Paste the public key you copied into the "Key" box.
-    -   Do **not** check "Allow write access" if you only need to pull code.
-    -   Click "Add key".
-3.  **Clone the Repository:**
-    -   Open PowerShell and navigate to `cd C:\inetpub\wwwroot`.
-    -   Run the clone command using the SSH URL:
-        ```powershell
-        git clone git@github.com:timothygaunt/syncproject.git sheetsync
-        ```
-
 ### b. Install, Build, and Configure
 1.  **Install Dependencies:** Navigate into the new directory (`cd sheetsync`) and run `npm install`.
-2.  **Build Frontend:** In the same PowerShell window, run `npm run build`. This is not strictly necessary as this is a Vite-less setup, but would be part of a real build process. The `web.config` will serve from the root.
-3.  **Set Environment Variable:** Create a system-level environment variable named `DATABASE_URL` with your SQL Server connection string.
+2.  **Set Environment Variable:** Create a system-level environment variable named `DATABASE_URL` with your SQL Server connection string.
     -   `mssql://SheetSyncUser:YourStrongPassword@localhost/SheetSyncDB`
     -   You will need to restart the server for this to take effect globally.
-4.  **Create IIS Site:**
+3.  **Create IIS Site:**
     -   In IIS Manager, right-click "Sites" and select "Add Website...".
     -   **Site name:** `SheetSyncApp`
     -   **Physical path:** `C:\inetpub\wwwroot\sheetsync` (Point it to the code root).
     -   **Binding:** Choose a port (e.g., 80).
-5.  **Place `web.config`:** Ensure the `web.config` file from the repository is in the root of your code directory (`C:\inetpub\wwwroot\sheetsync`).
+4.  **Place `web.config`:** Ensure the `web.config` file from the repository is in the root of your code directory (`C:\inetpub\wwwroot\sheetsync`).
 
-## 4. Data Mover Setup (Windows Task Scheduler)
+## 4. Data Mover Setup: The Master Scheduler (Efficient Method)
 
-The `dataMover.ts` script needs to be triggered for each job on its schedule.
+Instead of creating a separate task for every job, we will create a **single master task** that runs a scheduler script every minute. This script will dynamically check the database and trigger any jobs that are due. This is far more scalable and requires no manual intervention when new jobs are added.
 
-1.  **Adapt the Script:** The conceptual `dataMover.ts` needs to be adapted into a runnable Node.js script that can accept a `jobId` as a command-line argument and connect to the SQL Server database to fetch its configuration.
-2.  **Create a Task for Each Job:**
-    -   Open **Task Scheduler** on the server.
-    -   Click "Create Task...".
-    -   **General Tab:** Give it a name that includes the job name (e.g., "SheetSync - Daily Sales Sync").
-    -   **Triggers Tab:** Create a new trigger. Set the schedule according to the job's `cronSchedule`.
-    -   **Actions Tab:** Create a new "Start a program" action.
-        -   **Program/script:** `C:\Program Files\nodejs\node.exe` (or wherever node.exe is).
-        -   **Add arguments:** `C:\inetpub\wwwroot\sheetsync\services\dataMover.js JOB_ID_HERE` (replace `JOB_ID_HERE` with the actual job ID for this specific schedule).
-        -   **Start in:** `C:\inetpub\wwwroot\sheetsync\services\`
-    -   **Settings Tab:** Configure other settings as needed (e.g., "Run task as soon as possible after a scheduled start is missed").
+### a. Master Scheduler Script
+The `services/scheduler.ts` script is the heart of this system. It fetches all active jobs from the database and runs the ones whose cron schedule matches the current time.
 
-Your application is now deployed and configured to run on your on-premise Windows Server environment.
+### b. Create a Single Windows Task
+1.  Open **Task Scheduler** on the server.
+2.  In the "Actions" pane, click "Create Task...".
+3.  **General Tab:**
+    -   **Name:** `SheetSync Master Scheduler`
+    -   **Description:** `Runs every minute to trigger due sync jobs from the database.`
+    -   Select "Run whether user is logged on or not".
+4.  **Triggers Tab:**
+    -   Click "New...".
+    -   **Begin the task:** "On a schedule".
+    -   Select "Daily".
+    -   Under "Advanced settings", check **"Repeat task every:"** and choose **"1 minute"**.
+    -   For a duration of: **"Indefinitely"**.
+    -   Ensure "Enabled" is checked at the bottom. Click OK.
+5.  **Actions Tab:**
+    -   Click "New...".
+    -   **Action:** "Start a program".
+    -   **Program/script:** `C:\Program Files\nodejs\node.exe` (or the full path to your `node.exe`).
+    -   **Add arguments (optional):** `C:\inetpub\wwwroot\sheetsync\services\scheduler.js` (Use the path to the compiled `.js` file if using TypeScript, or `.ts` if using `ts-node`).
+    -   **Start in (optional):** `C:\inetpub\wwwroot\sheetsync\services\`
+6.  **Settings Tab:**
+    -   Check "Allow task to be run on demand".
+    -   Check "Run task as soon as possible after a scheduled start is missed".
+    -   **If the task is already running...:** Select "Do not start a new instance".
+7.  Click OK. You may be prompted to enter the password for the user account the task will run as.
+
+Your application is now deployed and configured with an efficient, automated scheduling system on your on-premise Windows Server environment.

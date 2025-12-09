@@ -473,7 +473,7 @@ export const CreateSyncJobModal: React.FC<{
                            {renderStepContent()}
                         </div>
 
-                        <div className="bg-gray-50 dark:bg-gray-700 px-4 py-3 sm:px-6 flex items-center justify-between mt-auto flex-shrink-0">
+                        <div className="bg-gray-50 dark:bg-gray-700/50 px-4 py-3 sm:px-6 flex items-center justify-between mt-auto flex-shrink-0">
                             <div>
                                 <Button type="button" variant="secondary" onClick={onClose}>Cancel</Button>
                             </div>
