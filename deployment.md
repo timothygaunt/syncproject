@@ -160,7 +160,7 @@ You must authenticate to clone a private repository. The recommended method is a
         git clone https://timothygaunt:<YOUR_PAT>@github.com/timothygaunt/syncproject.git sheetsync
         ```
 
-### b. Install, Build, and Configure
+### b. Install and Configure
 1.  **Install Dependencies:** Navigate into the new directory (`cd sheetsync`) and run `npm install`.
 2.  **Set Environment Variable:** Create a system-level environment variable named `DATABASE_URL` with your SQL Server connection string.
     -   `mssql://SheetSyncUser:YourStrongPassword@localhost/SheetSyncDB`
@@ -176,63 +176,7 @@ You must authenticate to clone a private repository. The recommended method is a
     -   **Application pool:** Click "Select..." and choose the `SheetSyncAppPool` you just created.
     -   **Physical path:** `C:\inetpub\wwwroot\sheetsync` (Point it to the code root).
     -   **Binding:** Choose port `80`.
-5.  **Confirm `web.config`:** The `web.config` file is the most critical piece for routing. This file is included in the project repository and must exist in the root of your code directory (`C:\inetpub\wwwroot\sheetsync`). Its content is as follows:
-
-    ```xml
-    <!--
-      This web.config file is essential for running the Node.js backend and React frontend
-      together in the same IIS site. It performs two main functions:
-      
-      1. IISNODE Handler: It tells IIS to use the iisnode module to execute the server.js file
-         for any requests that are routed to it. This is how the Node.js/Express API runs.
-         
-      2. URL Rewrite Rules:
-         a. API Reverse Proxy: The first rule intercepts any request starting with "/api/" and
-            sends it directly to the Node.js server (server.js). This acts as a reverse proxy.
-         b. SPA Fallback: The second rule handles all other requests. If the requested URL does
-            not correspond to a physical file or directory on the server (which is true for
-            React Router paths like "/dashboard" or "/management"), it serves the main index.html
-            file. This allows the React application's client-side router to take over and prevents "404 Not Found" errors.
-    -->
-    <configuration>
-      <system.webServer>
-        <handlers>
-          <!-- Tells IIS to pass server.js to the iisnode module for execution -->
-          <add name="iisnode" path="server.js" verb="*" modules="iisnode" />
-        </handlers>
-
-        <rewrite>
-          <rules>
-            <!-- Rule 1: Route all API requests to the Node.js server -->
-            <rule name="api">
-              <match url="^api/.*" />
-              <action type="Rewrite" url="server.js" />
-            </rule>
-
-            <!-- Rule 2: Handle SPA routing by serving index.html for non-file requests -->
-            <rule name="react-spa-fallback" stopProcessing="true">
-              <match url=".*" />
-              <conditions logicalGrouping="MatchAll">
-                <add input="{REQUEST_FILENAME}" matchType="IsFile" negate="true" />
-                <add input="{REQUEST_FILENAME}" matchType="IsDirectory" negate="true" />
-              </conditions>
-              <action type="Rewrite" url="index.html" />
-            </rule>
-          </rules>
-        </rewrite>
-
-        <!-- 
-          Enable logging for iisnode to help with debugging.
-          Logs will be created in a directory named 'iisnode' within your site's physical path.
-        -->
-        <iisnode      
-          loggingEnabled="true"
-          devErrorsEnabled="true" 
-        />
-
-      </system.webServer>
-    </configuration>
-    ```
+5.  **Confirm `web.config`:** The `web.config` file is the most critical piece for routing. This file is included in the project repository and must exist in the root of your code directory (`C:\inetpub\wwwroot\sheetsync`).
 
 ## 4. Data Mover Setup: The Master Scheduler (Efficient Method)
 

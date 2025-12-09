@@ -152,6 +152,7 @@ export const SyncJobItem: React.FC<SyncJobItemProps> = ({
 
             <div className={`transition-all duration-300 ease-in-out overflow-hidden ${isExpanded ? 'max-h-[30rem]' : 'max-h-0'}`}>
                 <div className="p-4 border-t border-gray-200 dark:border-gray-700 text-sm text-gray-600 dark:text-gray-300 grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {/* FIX: Populated the expandable section with the correct SourceDetails component and other job details, making it informative. */}
                     <div>
                         <h4 className="font-semibold text-gray-800 dark:text-gray-200 mb-2">Source Details</h4>
                         <SourceDetails job={job} managedSheet={managedSheet} ftpSource={ftpSource} />
@@ -166,6 +167,9 @@ export const SyncJobItem: React.FC<SyncJobItemProps> = ({
                         <h4 className="font-semibold text-gray-800 dark:text-gray-200 mb-2">Configuration</h4>
                         <p><strong>Service Acct:</strong> <span className="font-mono text-xs">{serviceAccount?.email || 'N/A'}</span></p>
                         <p><strong>Strategy:</strong> {job.syncStrategy}</p>
+                        {job.activeFrom && <p><strong>Active From:</strong> {job.activeFrom}</p>}
+                        {job.activeUntil && <p><strong>Active Until:</strong> {job.activeUntil}</p>}
+                        {job.notificationSettings?.enabled && <p><strong>Notifies:</strong> <span className="font-mono text-xs">{job.notificationSettings.recipients}</span></p>}
                     </div>
                 </div>
             </div>

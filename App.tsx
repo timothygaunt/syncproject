@@ -71,6 +71,9 @@ const App: React.FC = () => {
     useEffect(() => {
         if (isAuthenticated) {
             fetchData();
+        } else {
+            // When not authenticated, ensure loading is false.
+            setIsLoading(false);
         }
     }, [isAuthenticated, fetchData]);
     
@@ -136,6 +139,10 @@ const App: React.FC = () => {
         input.click();
     };
 
+
+    if (isLoading && !isAuthenticated) {
+        return <div />; // Render nothing or a minimal loader if needed before login state is confirmed
+    }
 
     if (!isAuthenticated) {
         return <LoginPage onLogin={handleLogin} />;

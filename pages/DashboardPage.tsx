@@ -91,6 +91,8 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ jobs, serviceAccounts, ma
     };
 
     const handleOpenEditModal = (job: SyncJob | null = null, step: number = 1) => {
+        if (!hasPermission('EDIT_JOB') && job) return;
+        if (!hasPermission('CREATE_JOB') && !job) return;
         setEditingJob(job);
         setInitialModalStep(step);
         setIsEditModalOpen(true);
@@ -226,7 +228,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ jobs, serviceAccounts, ma
                              <button onClick={handleImportJobClick} className="flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-indigo-600 bg-indigo-100 rounded-md hover:bg-indigo-200 focus:outline-none dark:bg-indigo-900/50 dark:text-indigo-300 dark:hover:bg-indigo-900">
                                 <ImportIcon className="h-5 w-5" />
                             </button>
-                            <button onClick={() => handleOpenEditModal()} className="flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700 focus:outline-none">
+                            <button onClick={() => handleOpenEditModal(null)} className="flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700 focus:outline-none">
                                 <PlusIcon className="h-5 w-5" />
                                 <span className="hidden sm:inline">New Job</span>
                             </button>
@@ -252,7 +254,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ jobs, serviceAccounts, ma
                 gcpProjectConnections={gcpProjectConnections}
                 onEdit={handleOpenEditModal} 
                 onDelete={handleDeleteJob} 
-                onNewSyncClick={() => handleOpenEditModal()}
+                onNewSyncClick={() => handleOpenEditModal(null)}
                 onPreviewSchema={handleOpenSchemaPreview}
                 onViewLogs={handleOpenLogsModal}
                 selectedJobIds={selectedJobIds}

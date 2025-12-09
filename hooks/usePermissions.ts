@@ -9,6 +9,8 @@ interface PermissionsContextType {
 
 const PermissionsContext = createContext<PermissionsContextType | undefined>(undefined);
 
+// FIX: A syntax error caused the component to not return any JSX, leading to multiple errors.
+// The component has been corrected to properly return the provider and its children.
 export const PermissionsProvider: React.FC<{
     currentUser: User | null;
     userGroups: UserGroup[];
@@ -26,7 +28,7 @@ export const PermissionsProvider: React.FC<{
         currentUser.groupIds.forEach(groupId => {
             const group = groupMap.get(groupId);
             if (group) {
-                // FIX: Cast group to UserGroup because Map.get() is incorrectly inferred as `unknown`.
+                // Cast to UserGroup because Map.get() can be inferred as `unknown`.
                 (group as UserGroup).permissions.forEach(permission => {
                     permissionsSet.add(permission);
                 });
@@ -40,12 +42,10 @@ export const PermissionsProvider: React.FC<{
         return userPermissions.has(permission);
     };
 
-    // FIX: Replaced JSX syntax with React.createElement to avoid parsing issues in a .ts file.
-    // This resolves multiple confusing compiler errors related to JSX syntax not being recognized.
-    return React.createElement(
-        PermissionsContext.Provider,
-        { value: { currentUser, userGroups, hasPermission } },
-        children
+    return (
+        <PermissionsContext.Provider value={{ currentUser, userGroups, hasPermission }}>
+            {children}
+        </PermissionsContext.Provider>
     );
 };
 

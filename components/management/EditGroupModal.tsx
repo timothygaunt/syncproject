@@ -30,7 +30,6 @@ interface EditGroupModalProps {
 }
 
 export const EditGroupModal: React.FC<EditGroupModalProps> = ({ isOpen, onClose, onSave, groupToEdit }) => {
-    // FIX: Explicitly type useState to prevent `any` inference.
     const [name, setName] = useState<string>('');
     const [description, setDescription] = useState<string>('');
     const [selectedPermissions, setSelectedPermissions] = useState<Set<Permission>>(new Set());
@@ -69,7 +68,6 @@ export const EditGroupModal: React.FC<EditGroupModalProps> = ({ isOpen, onClose,
         setError('');
         setIsSaving(true);
         try {
-            // FIX: Use spread syntax for better type inference from Set to Array.
             const payload = { name, description, permissions: [...selectedPermissions] };
             if (isEditMode) {
                 await updateUserGroup(groupToEdit.id, payload);

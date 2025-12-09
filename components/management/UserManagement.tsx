@@ -64,7 +64,6 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, userGroups, refr
                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{user.email}</td>
                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                                     <div className="flex flex-wrap gap-1">
-                                        {/* FIX: Refactored to be more type-safe and use a stable key. */}
                                         {user.groupIds
                                             .map(id => groupMap.get(id))
                                             .filter((g): g is UserGroup => !!g)
